@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>WebAR: 指定画像を出すだけ（CORS回避＆フォールバック）</title>
+
+  <!-- A-Frame & AR.js（CDN） -->
+  <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ar.js/2.1.1/aframe-ar.min.js"></script>
+
+  <style>
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+    .hint {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,.6); color: #fff; padding: 8px 12px;
+      font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; z-index: 10;
+    }
+    .hint b { font-weight: 700; }
+    .hint code { color: #9fe1ff; }
+  </style>
+
+  <script>
+    // 使い方（優先順位）
+    // 1) URLクエリに ?img=ABSOLUTE_URL を付けたらそれを使う（別リポ/別ドメインOK、https推奨）
+    // 2) 付いていなければ、HTML側の <img id="charSprite" src="..."> をそのまま使う
+    //    （同一リポに /assets/character.png を置けばCORS不要で確実）
+
+    const PARAM_IMG = new URLSearchParams(location.search).get('img');
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const img = document.getElementById('charSprite');
+      const statusEl = document.getElementById('status');
+      const pathEl = document.getElementById('imgPath');
+
+      if (PARAM_IMG) {
+        // クエリがあればそちらを最優先
+        img.setAttribute('crossorigin', 'anonymous');
+        img.setAttribute('src', PARAM_IMG);
+      }
+
+      // UI表示
+      pathEl.textContent = img.getAttribute('src');
+
+      img.addEventListener('error', () => {
+        statusEl.textContent = '画像を読み込めませんでした。パス/拡張子/大文字小文字・CORSを確認。';
+      });
+      img.addEventListener('load', () => {
+        statusEl.textContent = 'マーカーを映してください（HIRO）。';
+      });
+    });
+  </script>
+</head>
+<body>
+  <!-- 簡易手順
+       A) 最短：同一リポで完結
+          - この index.html と /assets/character.png を同じリポに置く
+          - GitHub Pages を https で開く → カメラ許可 → HIRO マーカー
+          - URLにクエリは不要
+
+       B) 別リポ/別場所の画像を使う
+          - ページURLに ?img= フルURL を付ける（例）
+            https://あなた.github.io/AR3/?img=https%3A%2F%2Fraw.githubusercontent.com%2Fあなた%2Fimage-for-AR2%2Fmain%2Fassets%2Fcharacter.png
+          - GitHub Pages 間はCORSが通らないことがあるため、raw.githubusercontent.com を推奨
+  -->
+
+  <a-scene
+    embedded
+    vr-mode-ui="enabled: false"
+    renderer="precision: medium; antialias: true; colorManagement: true"
+    arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: true;"
+  >
+    <a-assets>
+      <!-- 既定は同一リポの画像。別リポを使うなら ?img= で上書きする -->
+      <img id="charSprite" src="assets/character.png" crossorigin="anonymous">
+    </a-assets>
+
+    <!-- HIROマーカー上に“指定画像だけ”を表示（立て看板で見やすく） -->
+    <a-marker preset="hiro">
+      <a-image
+        src="#charSprite"
+        rotation="0 0 0"
+        position="0 0.6 0"
+        width="0.8" height="1.2"
+        transparent="true"
+        material="alphaTest:0.01">
+      </a-image>
+
+      <!-- 画像には不要だが残してOK -->
+      <a-entity light="type: directional; intensity: 1" position="1 1 1"></a-entity>
+      <a-entity light="type: ambient; intensity: 0.6"></a-entity>
+    </a-marker>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <div class="hint">
+    <div><b>画像:</b> <span id="imgPath">assets/character.png</span></div>
+    <div id="status">読み込み中… カメラ許可が出たら「許可」を押す。</div>
+    <div>※ GitHub Pages 間の画像直リンクはCORSで落ちることがあります。その場合は <code>raw.githubusercontent.com</code> のフルURLを <code>?img=</code> で指定してください。</div>
+  </div>
+</body>
+</html>
